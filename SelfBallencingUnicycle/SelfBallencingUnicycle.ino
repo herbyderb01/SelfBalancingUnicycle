@@ -33,6 +33,10 @@ double errorX, errorY, lastErrorX, lastErrorY, integralX, integralY, derivativeX
 
 unsigned long lastTime;
 
+// Add offset variables for calibration
+double offsetX = 0;
+double offsetY = 0;
+
 void setup() {
   Serial.begin(115200);
   Serial.println("MPU6050 with PID Motor Control");
@@ -52,6 +56,36 @@ void setup() {
   Serial.println("MPU: Gyro range set to: +- 500 deg/s");
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
   Serial.println("MPU: Filter bandwidth set to: 21 Hz");
+  
+  // Calibration process
+  Serial.println("Calibrating sensor... Please keep the device still");
+  
+  // Take multiple readings to get a stable average
+  const int numReadings = 100;
+  double sumX = 0;
+  double sumY = 0;
+  
+  for (int i = 0; i < numReadings; i++) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+    
+    // Calculate the angles the same way we do in the loop
+    double angleX = atan2(a.acceleration.y, sqrt(pow(a.acceleration.x, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
+    double angleY = atan2(-a.acceleration.x, sqrt(pow(a.acceleration.y, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
+    
+    sumX += angleX;
+    sumY += angleY;
+    delay(10);
+  }
+  
+  // Calculate average offsets
+  offsetX = sumX / numReadings;
+  offsetY = sumY / numReadings;
+  
+  Serial.print("Calibration complete. X offset: ");
+  Serial.print(offsetX);
+  Serial.print(", Y offset: ");
+  Serial.println(offsetY);
   Serial.println("");
 
   motorX.setSpeed(0);
@@ -66,11 +100,15 @@ void loop() {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
-  // Calculate tilt angles (in degrees)
-  inputX = atan2(a.acceleration.y, sqrt(pow(a.acceleration.x, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
-  inputY = atan2(-a.acceleration.x, sqrt(pow(a.acceleration.y, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
+  // Calculate raw tilt angles (in degrees)
+  double rawX = atan2(a.acceleration.y, sqrt(pow(a.acceleration.x, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
+  double rawY = atan2(-a.acceleration.x, sqrt(pow(a.acceleration.y, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
+  
+  // Apply calibration offsets
+  inputX = rawX - offsetX;
+  inputY = rawY - offsetY;
 
-  // Print the angles for the serial plotter - formatted for better visualization
+  // Print the calibrated angles for the serial plotter
   Serial.print("X-Angle:");
   Serial.print(inputX);
   Serial.print(",");
