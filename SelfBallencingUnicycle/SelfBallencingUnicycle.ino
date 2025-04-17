@@ -6,7 +6,7 @@
 #include <math.h> // For atan2 and pow
 
 #define SPEED_BUFFER 0
-#define ANGLE_DEADZONE 1.5  // Deadzone in degrees (+/- from setpoint)
+#define ANGLE_DEADZONE 0.3  // Deadzone in degrees (+/- from setpoint)
 
 AF_DCMotor motorX(1); // Motor on M1 for X-axis correction
 AF_DCMotor motorY(4); // Motor on M2 for Y-axis correction
@@ -15,12 +15,12 @@ Adafruit_MPU6050 mpu;
 
 // PID Constants (tune these!)
 double KpX = 4;
-double KiX = 1.8;
-double KdX = 0.2;
+double KiX = 2.8;
+double KdX = 0.22;
 
-double KpY = 0.1;
-double KiY = 0.1;
-double KdY = 0.000;
+double KpY = 12;
+double KiY = 0.02;
+double KdY = 0.65;
 
 // PID Variables
 // double setpointX = 1;
