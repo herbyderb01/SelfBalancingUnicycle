@@ -108,19 +108,31 @@ void loop() {
   inputX = rawX - offsetX;
   inputY = rawY - offsetY;
 
-  // Print the calibrated angles for the serial plotter
-  Serial.print("X-Angle:");
-  Serial.print(inputX);
-  Serial.print(",");
-  Serial.print("Y-Angle:");
-  Serial.println(inputY);
-
   // Run the PID control for both axes
   controlPID(inputX, setpointX, KpX, KiX, KdX, errorX, lastErrorX,
             integralX, derivativeX, outputX, motorX, true);
 
   controlPID(inputY, setpointY, KpY, KiY, KdY, errorY, lastErrorY,
             integralY, derivativeY, outputY, motorY, false);
+
+  // Print all PID-related values for the serial plotter
+  Serial.print("X-Angle:");
+  Serial.print(inputX);
+  Serial.print(",");
+  Serial.print("Y-Angle:");
+  Serial.print(inputY);
+  Serial.print(",");
+  Serial.print("X-Error:");
+  Serial.print(errorX);
+  Serial.print(",");
+  Serial.print("Y-Error:");
+  Serial.print(errorY);
+  Serial.print(",");
+  Serial.print("X-Output:");
+  Serial.print(outputX);
+  Serial.print(",");
+  Serial.print("Y-Output:");
+  Serial.println(outputY);
 
   lastErrorX = errorX;
   lastErrorY = errorY;
@@ -132,7 +144,7 @@ void loop() {
   delay(10); // Adjust delay as needed
 }
 
-// PID control function
+// Modified PID control function to ensure output values are properly updated even in deadzone
 void controlPID(double input, double setpoint, double Kp, double Ki, double Kd,
                 double &error, double &lastError, double &integral, double &derivative,
                 double &output, AF_DCMotor &motor, bool flipped) {
@@ -142,17 +154,17 @@ void controlPID(double input, double setpoint, double Kp, double Ki, double Kd,
 
   error = setpoint - input;
   
-  // Apply deadzone - if error is small enough, consider it zero
-  if (abs(error) <= ANGLE_DEADZONE) {
-    motor.run(RELEASE);
-    motor.setSpeed(0);
-    return; // Exit the function early - no motor movement needed
-  }
-  
   integral += error * timeChange / 1000.0; // Integral over time
   derivative = (input - lastError) / (timeChange / 1000.0); // Rate of change
 
   output = Kp * error + Ki * integral + Kd * derivative;
+  
+  // Apply deadzone - if error is small enough, consider it zero
+  if (abs(error) <= ANGLE_DEADZONE) {
+    motor.run(RELEASE);
+    motor.setSpeed(0);
+    return; // Exit function but we've already calculated output for plotting
+  }
 
   // Limit the output to the motor's speed range (0-255)
   int motorSpeed = constrain(abs(output), 0, 225);
