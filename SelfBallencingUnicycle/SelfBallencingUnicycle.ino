@@ -6,6 +6,7 @@
 #include <math.h> // For atan2 and pow
 
 #define SPEED_BUFFER 0
+#define ANGLE_DEADZONE 1.5  // Deadzone in degrees (+/- from setpoint)
 
 AF_DCMotor motorX(1); // Motor on M1 for X-axis correction
 AF_DCMotor motorY(4); // Motor on M2 for Y-axis correction
@@ -69,14 +70,11 @@ void loop() {
   inputX = atan2(a.acceleration.y, sqrt(pow(a.acceleration.x, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
   inputY = atan2(-a.acceleration.x, sqrt(pow(a.acceleration.y, 2) + pow(a.acceleration.z, 2))) * 180 / M_PI;
 
-  // Print the angles for the serial plotter
-  Serial.print("X: "); // Identifier for Angle X
-  Serial.print(" ");
+  // Print the angles for the serial plotter - formatted for better visualization
+  Serial.print("X-Angle:");
   Serial.print(inputX);
-  Serial.print(" ");
-
-  Serial.print("Y: "); // Identifier for Angle Y
-  Serial.print(" ");
+  Serial.print(",");
+  Serial.print("Y-Angle:");
   Serial.println(inputY);
 
   // Run the PID control for both axes
@@ -105,6 +103,14 @@ void controlPID(double input, double setpoint, double Kp, double Ki, double Kd,
   double timeChange = (double)(now - lastTime);
 
   error = setpoint - input;
+  
+  // Apply deadzone - if error is small enough, consider it zero
+  if (abs(error) <= ANGLE_DEADZONE) {
+    motor.run(RELEASE);
+    motor.setSpeed(0);
+    return; // Exit the function early - no motor movement needed
+  }
+  
   integral += error * timeChange / 1000.0; // Integral over time
   derivative = (input - lastError) / (timeChange / 1000.0); // Rate of change
 
